@@ -1,14 +1,14 @@
-import cv2, numpy as np, os,time
+import cv2, numpy as np,time
 import serial
 
 
 ser = serial.Serial("/dev/ttyACM0",9600)
 
-img_size = 60 # has to be the same as for training
+img_size = 1 # has to be the same as for training
 #chromakey values for the color green
 h,s,v,h1,s1,v1 = 19,91,4,64,255,255
 #parameter for segmenting image
-pad = 60
+pad = 1
 
 #capture video
 cap = cv2.VideoCapture(0)
@@ -50,8 +50,11 @@ dimData = np.prod([img_size, img_size])
 while True:
     #read image from video, create a copy to draw on
     _, img= cap.read()
-    imgc = img.copy()
-    height, width, _ = img.shape
+    #imgc = img.copy()
+    #height, width, _ = img.shape
+    height = 480
+    width = 640
+    shape = ""
 
 
     #mask of the green regions in the image    
@@ -65,7 +68,7 @@ while True:
         #if the contour is too big or too small, it can be ignored
         area = cv2.contourArea(c)
         #print area
-        if area> 2000 and area< 1180000:
+        if area> 25000 and area< 1180000:
 
             #crop out the green shape
             roi, coords = bbox(img, c)
@@ -86,21 +89,25 @@ while True:
 
                 approx = cv2.approxPolyDP(c,0.03*cv2.arcLength(c,True),True)
                 if len(approx) == 3:
-                    cv2.putText(imgc,'Triangle',center,cv2.FONT_HERSHEY_COMPLEX,0.6,(255,255,255),2)
+                    shape = "3"
+                    cv2.putText(img,'Triangle',center,cv2.FONT_HERSHEY_COMPLEX,0.6,(255,255,255),2)
                 elif len(approx) == 4:
-                    cv2.putText(imgc,'Square',center,cv2.FONT_HERSHEY_COMPLEX,0.6,(255,255,255),2)
-                else: cv2.putText(imgc,'circle',center,cv2.FONT_HERSHEY_COMPLEX,0.6,(255,255,255),2)
+                    shape = "4"
+                    cv2.putText(img,'Square',center,cv2.FONT_HERSHEY_COMPLEX,0.6,(255,255,255),2)
+                else:
+                    shape = "9"
+                    cv2.putText(img,'circle',center,cv2.FONT_HERSHEY_COMPLEX,0.6,(255,255,255),2)
                 #draw the contour
                 
-                cv2.drawContours(imgc, c, -1, (0,0,255), 1)
+                cv2.drawContours(img, c, -1, (0,0,255), 1)
 
-                cv2.circle(imgc,center, 10, (0,0,255), -1)
+                cv2.circle(img,center, 10, (0,0,255), -1)
                 #print(center)
                 #print(len(approx))#send data to arduino
 
                 hei = str(center[1])
                 wid = str(center[0])                
-                positioning = f"{wid},{hei}\n"
+                positioning = f"{wid},{hei}!{shape}\n"
                 ser.write(b"%b" % positioning.encode('utf8'))
 
 
@@ -119,8 +126,11 @@ while True:
 
                 #paste the black and white image onto the source image (picture in picture)
                 #if text!='': imgc[imgc.shape[0]-200:imgc.shape[0], img.shape[1]-200:img.shape[1]] = cv2.cvtColor(cv2.resize(roi, (200,200)), cv2.COLOR_GRAY2BGR)
-   
-    cv2.imshow('img', cv2.resize(imgc, (640, 480))) #expect 2 frames per second
+  
+    shape = ""
+    time.sleep(0.2)
+    cv2.imshow('img', img) #expect 2 frames per second
+    #cv2.imshow('img', cv2.resize(img, (640, 480))) #expect 2 frames per second
     if cv2.waitKey(1) == ord('q'):
         break
     
